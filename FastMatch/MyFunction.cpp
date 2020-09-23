@@ -40,7 +40,7 @@ double SingleTransEvaluation(Contours& maskStruct, Mat &srcImage, vector<Point> 
 	double centerX = maskStruct.centerX;
 	double centerY = maskStruct.centerY;
 
-	int pixelStep = 10;
+	int pixelStep = int(10/scale);
 	double curPointValue;
 	double curPointValue_UR1;
 	double curPointValue_UR2;
@@ -53,47 +53,45 @@ double SingleTransEvaluation(Contours& maskStruct, Mat &srcImage, vector<Point> 
 
 	Point curPoint, transPoint;
 	int sampleStep = (int)(1 / pow(epsilon, 2)), num = 0;
-	double distance = 0, penalty = 0;
-	//for (int i = 0; i < subMaskPiontSet.size(); i += sampleStep)
-	//{
-	//	num++;
-	//	curPoint = subMaskPiontSet[i];
-	//	transPoint = AfterTrans(curTrans, curPoint = subMaskPiontSet[i],centerX,centerY);
-	//	if (transPoint.x >= 0 && transPoint.x < srcImage.cols && transPoint.y >= 2*pixelStep && transPoint.y < srcImage.rows-2*pixelStep)
-	//	{
-	//		//penalty += abs(maskImage.at<uchar>(curPoint) - srcImage.at<uchar>(transPoint));
-	//		curPointValue = srcImage.at<uchar>(transPoint.y, transPoint.x);
-	//		curPointValue_UR1 = srcImage.at<uchar>(transPoint.y - 1 * pixelStep, transPoint.x + 1 * pixelStep);
-	//		curPointValue_UR2 = srcImage.at<uchar>(transPoint.y - 2 * pixelStep, transPoint.x + 2 * pixelStep);
-	//		curPointValue_UL1 = srcImage.at<uchar>(transPoint.y - 1 * pixelStep, transPoint.x - 1 * pixelStep);
-	//		curPointValue_UL2 = srcImage.at<uchar>(transPoint.y - 2 * pixelStep, transPoint.x - 2 * pixelStep);
-	//		curPointValue_DR1 = srcImage.at<uchar>(transPoint.y + 1 * pixelStep, transPoint.x + 1 * pixelStep);
-	//		curPointValue_DR2 = srcImage.at<uchar>(transPoint.y + 2 * pixelStep, transPoint.x + 2 * pixelStep);
-	//		curPointValue_DL1 = srcImage.at<uchar>(transPoint.y + 1 * pixelStep, transPoint.x - 1 * pixelStep);
-	//		curPointValue_DL2 = srcImage.at<uchar>(transPoint.y + 2 * pixelStep, transPoint.x - 2 * pixelStep);
-	//		penalty += abs(8 * curPointValue - curPointValue_DL1 - curPointValue_DL2 - curPointValue_DR1
-	//			- curPointValue_DR2 - curPointValue_UL1 - curPointValue_UL2 - curPointValue_UR1 - curPointValue_UR2);
-	//	}
-	//	
-	//}
-
-
+	double distance = 0, score = 0;
 	for (int i = 0; i < subMaskPiontSet.size(); i += sampleStep)
 	{
 		num++;
 		curPoint = subMaskPiontSet[i];
-		transPoint = AfterTrans(curTrans, curPoint = subMaskPiontSet[i], centerX, centerY);
-		if (transPoint.x >= 0 && transPoint.x < srcImage.cols && transPoint.y >= 0 && transPoint.y < srcImage.rows)
+		transPoint = AfterTrans(curTrans, subMaskPiontSet[i],centerX,centerY);
+		if (transPoint.x >= 0 && transPoint.x < srcImage.cols && transPoint.y >= 2*pixelStep && transPoint.y < srcImage.rows-2*pixelStep)
 		{
-			penalty += 1.0 - srcImage.at<uchar>(transPoint);
-		}
-		else
-		{
-			penalty += 1;
-		}
+			//penalty += abs(maskImage.at<uchar>(curPoint) - srcImage.at<uchar>(transPoint));
+			curPointValue = srcImage.at<uchar>(transPoint.y, transPoint.x);
+			curPointValue_UR1 = srcImage.at<uchar>(transPoint.y - 1 * pixelStep, transPoint.x + 1 * pixelStep);
+			curPointValue_UR2 = srcImage.at<uchar>(transPoint.y - 2 * pixelStep, transPoint.x + 2 * pixelStep);
+			curPointValue_UL1 = srcImage.at<uchar>(transPoint.y - 1 * pixelStep, transPoint.x - 1 * pixelStep);
+			curPointValue_UL2 = srcImage.at<uchar>(transPoint.y - 2 * pixelStep, transPoint.x - 2 * pixelStep);
+			curPointValue_DR1 = srcImage.at<uchar>(transPoint.y + 1 * pixelStep, transPoint.x + 1 * pixelStep);
+			curPointValue_DR2 = srcImage.at<uchar>(transPoint.y + 2 * pixelStep, transPoint.x + 2 * pixelStep);
+			curPointValue_DL1 = srcImage.at<uchar>(transPoint.y + 1 * pixelStep, transPoint.x - 1 * pixelStep);
+			curPointValue_DL2 = srcImage.at<uchar>(transPoint.y + 2 * pixelStep, transPoint.x - 2 * pixelStep);
+			score += (8 * curPointValue - curPointValue_DL1 - curPointValue_DL2 - curPointValue_DR1
+				- curPointValue_DR2 - curPointValue_UL1 - curPointValue_UL2 - curPointValue_UR1 - curPointValue_UR2) / 8;
+		}		
 	}
 
-	distance = penalty / num;
+	//for (int i = 0; i < subMaskPiontSet.size(); i += sampleStep)
+	//{
+	//	num++;
+	//	curPoint = subMaskPiontSet[i];
+	//	transPoint = AfterTrans(curTrans, curPoint = subMaskPiontSet[i], centerX, centerY);
+	//	if (transPoint.x >= 0 && transPoint.x < srcImage.cols && transPoint.y >= 0 && transPoint.y < srcImage.rows)
+	//	{
+	//		penalty += 1.0 - srcImage.at<uchar>(transPoint);
+	//	}
+	//	else
+	//	{
+	//		penalty += 1;
+	//	}
+	//}
+
+	distance =1-(score / num);
 
 	return distance;
 }
@@ -146,14 +144,14 @@ vector<tuple<int, int, double>> ConstructNet(Mat&srcImage, double delta)
 
 
 /*计算当前TransNet下的最佳变换*/
-tuple<int, int, double> GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<Point>&subMaskPiontSet,
+CurrentBestReusult GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<Point>&subMaskPiontSet,
 	vector<tuple<int, int, double>>&TransNet, double delta, double epsilon)
 {
 	Mat maskImage = maskStruct.dstImage;
 	double centerX = maskStruct.centerX;
 	double centerY = maskStruct.centerY;
 
-	double distance = 0;
+	double distance = DBL_MAX;
 	double temp_distance;
 	tuple<int, int, double> bestTrans;
 	for (int i = 0; i < TransNet.size(); i++)
@@ -168,17 +166,22 @@ tuple<int, int, double> GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<
 		}
 	}
 
-	return bestTrans;
+	CurrentBestReusult bestResult;
+	bestResult.currentBestTrans = bestTrans;
+	bestResult.currentBestDistance = distance;
+
+	return bestResult;
 }
 
 
 vector <tuple<int, int, double >> GetNextNet(Mat&srcImage, vector<tuple<int, int, double >> &GoodTransNet,
 	vector<Point>&subMaskPointSet, double centerX, double centerY, double delta)
 {
-	double lowX = -srcImage.cols;
-	double highX = srcImage.cols;
-	double lowY = -srcImage.rows;
-	double highY = srcImage.rows;
+
+	int lowX = -srcImage.cols;
+	int highX = srcImage.cols;
+	int lowY = -srcImage.rows;
+	int highY = srcImage.rows;
 	double lowR = 0;
 	double highR = 2 * PI;
 
@@ -188,58 +191,35 @@ vector <tuple<int, int, double >> GetNextNet(Mat&srcImage, vector<tuple<int, int
 
 	int netSize = (int)(highX - lowX)*(highY - lowY)*(highR - lowR) / (tx_step*ty_step*r_step);
 
-	int tx, ty;
-	double r;
+	double thetaL, thetaR;
 	bool FLAG = true;
 	double distanceCurToGood = 0;//计算L(∞)
-	vector<tuple<int, int, double>> TransNet;
-	for (int tx_index = lowX; tx_index < highX; tx_index += tx_step)
+	vector<tuple<int, int, double>> nextTransNet;
+	tuple<int, int, double> extendedTrans;
+	for (int i = 0; i < GoodTransNet.size(); i++)
 	{
-		tx = tx_index;
-		for (int ty_index = lowY; ty_index < highY; ty_index += ty_step)
+		nextTransNet.push_back(GoodTransNet[i]);
+		for (int outerX = -2; outerX <= 2; outerX++)
 		{
-			ty = ty_index;
-			for (double r_index = lowR; r_index < highR; r_index += r_step)
+			for (int outerY = -2; outerY <= 2; outerY++)
 			{
-				r = r_index;
-				tuple<int, int, double>curTrans{ tx,ty,r };
-
-				for (int i = 0; i < subMaskPointSet.size(); i++)
+				for (int outerTheta = -2; outerTheta <= 2; outerTheta++)
 				{
-					/*模板点集中任意一点curPoint*/
-					Point curPoint = subMaskPointSet[i];
-					/*curPoint经过当前变换后的点transPoint*/
-					Point transPoint = AfterTrans(curTrans, curPoint, centerX, centerY);
-					/*遍历GoodTransNet，计算 max|transPoint - curGoodTransNet(curPoint)|^2*/
-					for (int j = 0; j < GoodTransNet.size(); j++)
+					if (outerX==0 && outerY==0 && outerTheta==0)
 					{
-						FLAG = true;
-						tuple<int, int, double> curGoodTrans = GoodTransNet[i];
-						Point curGoodTransPoint = AfterTrans(curGoodTrans, curPoint, centerX, centerY);
-						if (curGoodTransPoint.x >= 0 && curGoodTransPoint.x < srcImage.cols &&curGoodTransPoint.y >= 0 && curGoodTransPoint.y < srcImage.rows)
-						{
-							double distance = sqrt((transPoint.x - curGoodTransPoint.x) ^ 2 + (transPoint.y - curGoodTransPoint.y) ^ 2);
-							if (distance > 0.05*delta*srcImage.rows)
-							{
-								i = subMaskPointSet.size();
-								j = GoodTransNet.size();
-								FLAG = false;
-							}
-						}
+						continue;
 					}
-				}
-
-				/*如果GoodTransNet中存在变换curGoodTransNet，和curTrans之间的距离小于期望值，存储当前curTrans*/
-				if (FLAG)
-				{
-					TransNet.push_back(curTrans);
+					get<0>(extendedTrans) = get<0>(GoodTransNet[i]) + outerX * delta * srcImage.rows;
+					get<1>(extendedTrans) = get<1>(GoodTransNet[i]) + outerY * delta * srcImage.rows;
+					get<2>(extendedTrans) = get<2>(GoodTransNet[i]) + outerTheta * delta;
+					nextTransNet.push_back(extendedTrans);
 				}
 			}
 		}
 	}
 
-	cout << "next Net's size is :" << TransNet.size() << endl;
-	return TransNet;
+	cout << "next Net's size is :" << nextTransNet.size() << endl;
+	return nextTransNet;
 }
 
 
@@ -253,7 +233,7 @@ tuple<int, int, double> FastMatch(Contours &maskStruct, Mat &srcImage, double de
 	int n1 = maskImage.rows;
 	int n2 = srcImage.rows;
 	double bestAngle;
-	double sampleRate = 0.01;
+	double sampleRate = 0.005;
 
 
 	/*Step 0 : Get the mask's point*/
@@ -295,33 +275,33 @@ tuple<int, int, double> FastMatch(Contours &maskStruct, Mat &srcImage, double de
 
 	/*Step 2: Iterate, update and calculate the best translation.*/
 	cout << "Step 2:Iterate, update and calculate the best translation." << endl;
-	double distance = 0, alpha = 0.99, beta = 0.02;
-	double L_Delta = alpha * delta + beta;
+	double distance = 0, alpha = 0.1, beta = 0;
+	double L_Delta; 
 	double curDistance;
 	double bestDistance = DBL_MAX;
 	int index = 0;
 	vector<double>bestDistanceSet;
-	tuple<int, int, double>  bestTrans, tempBestTrans;
+	tuple<int, int, double>  bestTrans;
+	CurrentBestReusult bestResult;
 	clock_t t5 = clock();
 
 	while (true)
 	{
 		index++;
+		L_Delta = alpha * delta + beta;
 
-		/*计算当前变换网络下的最佳变换bestTrans*/
-		tempBestTrans = GetBestTrans(maskStruct, srcImage, subMaskPointSet, TransNet, delta, epsilon);
+		/*计算当前变换网络下的最佳变换bestTrans + bestDistance*/
+		bestResult = GetBestTrans(maskStruct, srcImage, subMaskPointSet, TransNet, delta, epsilon);
 
-		/*计算最佳变换距离下的模板匹配距离*/
-		double tempBestDistance = SingleTransEvaluation(maskStruct, srcImage, subMaskPointSet, tempBestTrans, epsilon);
-
-		if (bestDistance > tempBestDistance)
+		if (bestDistance > bestResult.currentBestDistance)
 		{
-			bestDistance = tempBestDistance;
-			bestTrans = tempBestTrans;
+			bestDistance = bestResult.currentBestDistance;
+			bestTrans = bestResult.currentBestTrans;
 		}
 		cout << "bestDistance is :" << bestDistance << endl;
 
 		bestDistanceSet.push_back(bestDistance);
+
 		if (bestDistanceSet.size() >= 3 && abs(bestDistanceSet[index - 1] - bestDistanceSet[index - 3]) < 0.1)
 		{
 			break;
@@ -338,23 +318,28 @@ tuple<int, int, double> FastMatch(Contours &maskStruct, Mat &srcImage, double de
 				GoodTransNet.push_back(curTrans);
 			}
 		}
+		cout << "the " << index << "th's GoodTransNet's size is :" << GoodTransNet.size() << endl;
 
 		/*更新δ*/
 		delta = delta * factor;
 
 		/*根据新的δ和GoodTransNet更新变换网络TransNet*/
+		vector<tuple<int, int, double>>().swap(TransNet);
 		TransNet = GetNextNet(srcImage, GoodTransNet, subMaskPointSet, centerX, centerY, delta);
 
+		/*清空vector*/
+		vector<double>().swap(bestDistanceSet);
+		vector<tuple<int, int, double>>().swap(GoodTransNet);
 
-		if (delta < 0.05 || bestDistance < 0.2)
+		if (delta < 0.0005/* || bestDistance < 0.2*/)
 		{
 			break;
 		}
 
 	}
 	clock_t t6 = clock();
-	cout << "Step 1:Size of the next_N(δ) net is:" << TransNet.size() << endl;
-	cout << "Step 1:delta is :" << delta << "; bestDistance is :" << bestDistance << endl;
+	cout << "Step 2:Size of the next_N(δ) net is:" << TransNet.size() << endl;
+	cout << "Step 2:delta is :" << delta << "; bestDistance is :" << bestDistance << endl;
 	cout << "Step 2:Iterate, update and calculate the best translation has been finished !" << endl;
 	cout << "Time is :" << (t6 - t5)* 1.0 / CLOCKS_PER_SEC << "s\n" << endl;
 

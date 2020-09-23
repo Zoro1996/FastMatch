@@ -19,7 +19,7 @@ using namespace cv::xfeatures2d;
 
 
 
-Contours GetMaskImage(char *maskImagePath)
+Contours GetMaskImage(Mat &maskImage)
 {
 	int centerX = 0;
 	int centerY = 0;
@@ -30,7 +30,6 @@ Contours GetMaskImage(char *maskImagePath)
 	vector<Vec4i> hierachy;
 	vector<Point> PointSet;
 
-	Mat maskImage = imread(maskImagePath, 0);
 	Canny(maskImage, cannyOutput, 150, 255, 3, false);
 
 	findContours(cannyOutput, contours, hierachy, RETR_TREE, CHAIN_APPROX_NONE, Point(0, 0));
@@ -67,7 +66,7 @@ Contours GetMaskImage(char *maskImagePath)
 
 int main(int argc, char *argv[])
 {
-	int index = 1;
+	int index = 2;
 	char  srcImagePath[100], maskImagePath[100];
 
 	sprintf_s(srcImagePath, "E:\\dataset\\0901\\02\\%d.bmp", index);
@@ -75,9 +74,15 @@ int main(int argc, char *argv[])
 
 	Mat srcImage = imread(srcImagePath, 0);
 	Mat srcImageRGB = imread(srcImagePath, 1);
+	Mat maskImage = imread(maskImagePath, 0);
 
-	Contours maskStruct = GetMaskImage(maskImagePath);
-	Mat maskImage = maskStruct.dstImage;
+	int row = int(srcImage.rows / scale);
+	int col = int(srcImage.cols / scale);
+	resize(srcImage, srcImage, Size(col, row));
+	resize(srcImageRGB, srcImageRGB, Size(col, row));
+	resize(maskImage, maskImage, Size(col, row));
+
+	Contours maskStruct = GetMaskImage(maskImage);
 
 	if (srcImage.empty())
 	{
@@ -89,38 +94,25 @@ int main(int argc, char *argv[])
 	srcImage /= 255;
 	maskImage /= 255;
 	double delta = 0.2;
-	double epsilon = 0.5;
-	double factor = 0.9;
+	double epsilon = 1;
+	double factor = 0.5;
 	tuple<int, int, double> bestTrans = FastMatch(maskStruct, srcImage, delta, epsilon, factor);
-
+	//tuple<int, int, double> bestTrans{ -54,-42,-0.54 };
 	int transX = get<0>(bestTrans);
 	int transY = get<1>(bestTrans);
 	double theta = get<2>(bestTrans);
 
 	srcImage *= 255;
 	maskImage *= 255;
-	double centerX = 0;
-	double centerY = 0;
-	vector<Point2d> maskPoint;
-	for (int x = 0; x < maskImage.cols; x++)
-	{
-		for (int y = 0; y < maskImage.rows; y++)
-		{
-			if (maskImage.at<uchar>(y, x) != 0)
-			{
-				maskPoint.push_back(Point2d(x, y));
-				centerX += x;
-				centerY += y;
-			}
-		}
-	}
-	centerX /= maskPoint.size();
-	centerY /= maskPoint.size();
+	double centerX = maskStruct.centerX;
+	double centerY = maskStruct.centerY;
 
-	for (int i = 0; i < maskPoint.size(); i++)
+
+	vector<Point>maskPointSet = maskStruct.PointSet;
+	for (int i = 0; i < maskPointSet.size(); i++)
 	{
-		int x = (int)(centerX + cos(theta)*(maskPoint[i].x - centerX) - sin(theta)*(maskPoint[i].y - centerY) + transX);
-		int y = (int)(centerY + sin(theta)*(maskPoint[i].x - centerX) + cos(theta)*(maskPoint[i].y - centerY) + transY);
+		int x = (int)(cos(theta)*(maskPointSet[i].x - centerX) - sin(theta)*(maskPointSet[i].y - centerY)) + centerX + transX;
+		int y = (int)(sin(theta)*(maskPointSet[i].x - centerX) + cos(theta)*(maskPointSet[i].y - centerY)) + centerY + transY;
 		if (x >= 0 && x < srcImage.cols && y >= 0 && y < srcImage.rows)
 		{
 			srcImageRGB.at<Vec3b>(y, x)[0] = 0;

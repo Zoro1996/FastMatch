@@ -18,7 +18,9 @@ using namespace std;
 using namespace cv;
 using namespace cv::xfeatures2d;
 
+
 static constexpr const double PI = 3.14;
+static constexpr const int scale = 8;
 struct Contours
 {
 	/*轮廓图*/
@@ -31,8 +33,17 @@ struct Contours
 	/*点集形式*/
 	vector<Point> PointSet;
 };
-
-
+struct TransVariable
+{
+	int tx;
+	int ty;
+	double theta;
+};
+struct CurrentBestReusult
+{
+	tuple<int, int, double> currentBestTrans;
+	double currentBestDistance;
+};
 
 
 Point AfterTrans(tuple<int, int, double>&curTrans, Point curPoint, double centerX, double centerY);
@@ -42,7 +53,7 @@ double SingleTransEvaluation(Contours& maskStruct, Mat &srcImage, vector<Point> 
 
 vector<tuple<int, int, double>> ConstructNet(Mat&srcImage, double delta);
 
-tuple<int, int, double> GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<Point>&subMaskPiontSet,
+CurrentBestReusult GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<Point>&subMaskPiontSet,
 	vector<tuple<int, int, double>>&TransNet, double delta, double epsilon);
 
 vector <tuple<int, int, double >> GetNextNet(Mat&srcImage, vector <tuple<int, int, double >> &GoodTransNet,
