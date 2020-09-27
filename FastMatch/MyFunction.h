@@ -19,8 +19,9 @@ using namespace cv;
 using namespace cv::xfeatures2d;
 
 
-static constexpr const double PI = 3.14;
+static constexpr const float PI = 3.14;
 static constexpr const int scale = 8;
+
 struct Contours
 {
 	/*轮廓图*/
@@ -31,32 +32,33 @@ struct Contours
 	int centerY;
 
 	/*点集形式*/
-	vector<Point> PointSet;
+	vector<Point2f> PointSet;
 };
+
 struct TransVariable
 {
 	int tx;
 	int ty;
-	double theta;
+	float theta;
 };
 struct CurrentBestReusult
 {
-	tuple<int, int, double> currentBestTrans;
-	double currentBestDistance;
+	tuple<int, int, float> currentBestTrans;
+	float currentBestDistance;
 };
 
 
-Point AfterTrans(tuple<int, int, double>&curTrans, Point curPoint, double centerX, double centerY);
+Point2f AfterTrans(tuple<int, int, float>&curTrans, Point2f curPoint, float centerX, float centerY);
 
-double SingleTransEvaluation(Contours& maskStruct, Mat &srcImage, vector<Point> &subMaskPiontSet,
-	tuple<int, int, double>&curTrans, double epsilon);
+float SingleTransEvaluation(Contours& maskStruct, Mat &srcImage, vector<Point2f> &subMaskPiontSet,
+	tuple<int, int, float>&curTrans, float epsilon);
 
-vector<tuple<int, int, double>> ConstructNet(Mat&srcImage, double delta);
+vector<tuple<int, int, float>> ConstructNet(Mat&srcImage, float delta);
 
-CurrentBestReusult GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<Point>&subMaskPiontSet,
-	vector<tuple<int, int, double>>&TransNet, double delta, double epsilon);
+CurrentBestReusult GetBestTrans(Contours& maskStruct, Mat&srcImage, vector<Point2f>&subMaskPiontSet,
+	vector<tuple<int, int, float>>&TransNet, float delta, float epsilon);
 
-vector <tuple<int, int, double >> GetNextNet(Mat&srcImage, vector <tuple<int, int, double >> &GoodTransNet,
-	vector<Point>&subMaskPointSet, double centerX, double centerY, double delta);
+vector <tuple<int, int, float >> GetNextNet(Mat&srcImage, vector <tuple<int, int, float >> &GoodTransNet,
+	vector<Point2f>&subMaskPointSet, float centerX, float centerY, float delta);
 
-tuple<int, int, double> FastMatch(Contours &maskStruct, Mat &srcImage, double delta, double epsilon, double factor);
+tuple<int, int, float> FastMatch(Contours &maskStruct, Mat &srcImage, float delta, float epsilon, float factor);

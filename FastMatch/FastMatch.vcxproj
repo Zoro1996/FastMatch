@@ -125,7 +125,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="man.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="MyFunction.cpp" />
   </ItemGroup>
   <ItemGroup>
