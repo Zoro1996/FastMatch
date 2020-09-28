@@ -87,26 +87,19 @@ float SingleTransEvaluation(Contours& maskStruct, Mat &srcImage, vector<Point2f>
 
 vector<tuple<int, int, float>> ConstructNet(Mat&srcImage, float delta)
 {
-	
 	int lowX = -srcImage.cols;//-5472
-	int highX = srcImage.cols;//-3648
-	int lowY = -srcImage.rows;
+	int highX = srcImage.cols;
+	int lowY = -srcImage.rows;//-3648
 	int highY = srcImage.rows;
-	//float lowX = -10;
-	//float highX = 10;
-	//float lowY = -10;
-	//float highY = 10;
 	float lowR = -PI;
 	float highR = PI;
 
 	float attenuationFactor = 0.1;
 	int tx_step = int(attenuationFactor * delta * srcImage.rows);
 	int ty_step = int(attenuationFactor * delta * srcImage.rows);
-	//float tx_step = delta * srcImage.rows;
-	//float ty_step = delta * srcImage.rows;
-	float r_step = delta;
+	float theta_step = delta;
 
-	int netSize = (int)(highX - lowX)*(highY - lowY)*(highR - lowR) / (tx_step*ty_step*r_step);
+	//int netSize = (int)(highX - lowX)*(highY - lowY)*(highR - lowR) / (tx_step*ty_step*r_step);
 
 	int tx, ty;
 	float r;
@@ -118,7 +111,7 @@ vector<tuple<int, int, float>> ConstructNet(Mat&srcImage, float delta)
 		for (int ty_index = lowY; ty_index < highY; ty_index += ty_step)
 		{
 			ty = ty_index;
-			for (float r_index = lowR; r_index < highR; r_index += r_step)
+			for (float r_index = lowR; r_index < highR; r_index += theta_step)
 			{
 				r = r_index;
 				tuple<int, int, float>curTrans{ tx,ty,r };
@@ -140,7 +133,7 @@ CurrentBestReusult GetBestTrans(Contours& maskStruct, Mat& srcImage, vector<Poin
 	float centerX = maskStruct.centerX;
 	float centerY = maskStruct.centerY;
 
-	float distance = DBL_MAX;
+	float bestDistance = DBL_MAX;
 	float temp_distance;
 	tuple<int, int, float> bestTrans;
 	for (int i = 0; i < TransNet.size(); i++)
@@ -148,16 +141,16 @@ CurrentBestReusult GetBestTrans(Contours& maskStruct, Mat& srcImage, vector<Poin
 		tuple<int, int, float> curTrans = TransNet[i];
 		temp_distance = SingleTransEvaluation(maskStruct, srcImage, subMaskPiontSet, curTrans, epsilon);
 		//cout << "SingleTransEvaluation's temp_distance is:" << temp_distance << endl;
-		if (abs(distance) > abs(temp_distance))
+		if (abs(bestDistance) > abs(temp_distance))
 		{
-			distance = temp_distance;
+			bestDistance = temp_distance;
 			bestTrans = curTrans;
 		}
 	}
 
 	CurrentBestReusult bestResult;
 	bestResult.currentBestTrans = bestTrans;
-	bestResult.currentBestDistance = distance;
+	bestResult.currentBestDistance = bestDistance;
 
 	return bestResult;
 }
@@ -216,11 +209,9 @@ vector <tuple<int, int, float >> GetNextNet(Mat&srcImage, vector<tuple<int, int,
 tuple<int, int, float> FastMatch(Contours &maskStruct, Mat &srcImage, float delta, float epsilon, float factor)
 {
 	float bestAngle;
-	float sampleRate = 0.005;
-
 
 	/*Step 0 :Sample the subMaskPointSet*/
-	cout << "Step 0:Prepare work : Sample subMaskPontSet from the whole maskImage's pointSet." << endl;
+	cout << "Step 0:Prepare work : Sample subMaskPointSet from the whole maskImage's PointSet." << endl;
 	clock_t t1 = clock();
 
 	Mat maskImage = maskStruct.dstImage;
@@ -235,7 +226,7 @@ tuple<int, int, float> FastMatch(Contours &maskStruct, Mat &srcImage, float delt
 	for (int i = 0; i < PointSet.size(); i += (int)(sampleRate * PointSet.size()))
 	{
 		subMaskPointSet.push_back(PointSet[i]);
-	}
+	}//均匀采样
 
 	clock_t t2 = clock();
 	cout << "Step 0:PointSet's size is :" << PointSet.size() << endl;
@@ -262,7 +253,7 @@ tuple<int, int, float> FastMatch(Contours &maskStruct, Mat &srcImage, float delt
 
 	/*Step 2: Iterate, update and calculate the best translation.*/
 	cout << "Step 2:Iterate, update and calculate the best translation." << endl;
-	float distance = 0, alpha = 0.1, beta = 0.01;
+	float distance = 0, alpha = 0.05, beta = 0.005;
 	float L_Delta; 
 	float curDistance;
 	float bestDistance = DBL_MAX;
@@ -277,7 +268,7 @@ tuple<int, int, float> FastMatch(Contours &maskStruct, Mat &srcImage, float delt
 		index++;
 		L_Delta = alpha * delta + beta;
 
-		/*计算当前变换网络下的最佳变换bestTrans + bestDistance*/
+		/*计算当前变换网络下的bestTrans + bestDistance*/
 		bestResult = GetBestTrans(maskStruct, srcImage, subMaskPointSet, TransNet, delta, epsilon);
 
 		if (bestDistance > bestResult.currentBestDistance)
@@ -295,28 +286,38 @@ tuple<int, int, float> FastMatch(Contours &maskStruct, Mat &srcImage, float delt
 		}
 
 		/*计算和最佳变换相近的次优解集合GoodTransNet*/
-		for (int i = 0; i < TransNet.size(); i++)
+		while (GoodTransNet.size() < 10000)
 		{
-			tuple<int, int, float> curTrans = TransNet[i];
-			curDistance = SingleTransEvaluation(maskStruct, srcImage, subMaskPointSet, curTrans, epsilon);
-
-			if (abs(curDistance - bestDistance) < L_Delta)
+			for (int i = 0; i < TransNet.size(); i++)
 			{
-				GoodTransNet.push_back(curTrans);
+				tuple<int, int, float> curTrans = TransNet[i];
+				curDistance = SingleTransEvaluation(maskStruct, srcImage, subMaskPointSet, curTrans, epsilon);
+
+				if (abs(curDistance - bestDistance) < L_Delta)
+				{
+					GoodTransNet.push_back(curTrans);
+				}
 			}
-		}
+			if (GoodTransNet.size() < 10000)
+			{
+				vector<tuple<int, int, float>>().swap(TransNet);
+				L_Delta /= 2;
+			}
+		} 
 		cout << "the " << index << "th's GoodTransNet's size is :" << GoodTransNet.size() << endl;
 
 		/*更新δ*/
 		delta = delta * factor;
 
 		/*根据新的δ和GoodTransNet更新变换网络TransNet*/
-		vector<tuple<int, int, float>>().swap(TransNet);
+		vector<tuple<int, int, float>>().swap(TransNet);//清空TransNet
 		TransNet = GetNextNet(srcImage, GoodTransNet, subMaskPointSet, centerX, centerY, delta);
-		if (TransNet.size()>10000)
+		
+		if (TransNet.size()>50000)
 		{
 			break;
 		}
+
 		/*清空vector*/
 		vector<float>().swap(bestDistanceSet);
 		vector<tuple<int, int, float>>().swap(GoodTransNet);

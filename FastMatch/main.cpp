@@ -90,7 +90,7 @@ Contours ExitedGetMaskImage(Mat &maskImage)
 	{
 		for (int col = 0; col < maskImage.cols; col++)
 		{
-			if (maskImage.at<float>(row, col)!= 0)
+			if (maskImage.at<uchar>(row, col)!= 0)
 			{
 				centerX += col;
 				centerY += row;
@@ -117,7 +117,7 @@ Contours ExitedGetMaskImage(Mat &maskImage)
 
 int main(int argc, char *argv[])
 {
-	int index = 1;
+	int index = 2;
 	char  srcPath[100], maskPath[100];
 
 	sprintf_s(srcPath, "E:\\dataset\\0901\\02\\%d.bmp", index);
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 
 	Mat srcImage = src.clone();
 	Mat maskImage = mask.clone();
-	Mat srcImageRGB;
+	Mat srcImageRGB,maskImageRGB;
 
 	/*缩放*/
 	int row = int(srcImage.rows / scale);
@@ -138,9 +138,20 @@ int main(int argc, char *argv[])
 	resize(srcImage, srcImage, Size(col, row));
 	resize(srcRGB, srcImageRGB, Size(col, row));
 	resize(maskImage, maskImage, Size(col, row));
+	resize(maskRGB, maskImageRGB, Size(col, row));
 
 	//Contours maskStruct = GetMaskImage(maskImage);
 	Contours maskStruct = ExitedGetMaskImage(maskImage);
+
+	/*test*/
+	//vector<Point2f> subMaskPointSet;
+	//for (int i = 0; i < maskStruct.PointSet.size(); i += (int)(sampleRate * maskStruct.PointSet.size()))
+	//{
+	//	maskImageRGB.at<Vec3b>(maskStruct.PointSet[i])[0] = 0;
+	//	maskImageRGB.at<Vec3b>(maskStruct.PointSet[i])[1] = 0;
+	//	maskImageRGB.at<Vec3b>(maskStruct.PointSet[i])[2] = 255;
+	//}
+
 
 	if (srcImage.empty())
 	{
@@ -150,7 +161,7 @@ int main(int argc, char *argv[])
 	/*模板匹配快速搜索算法*/
 	//Normalize
 	srcImage.convertTo(srcImage, CV_32FC1);
-	//maskImage.convertTo(maskImage, CV_32FC1);
+	maskImage.convertTo(maskImage, CV_32FC1);
 	srcImage /= 255;
 	maskImage /= 255;
 	float delta = 0.2;
@@ -173,24 +184,17 @@ int main(int argc, char *argv[])
 	vector<Point2f>maskPointSet = maskStruct.PointSet;
 	for (int i = 0; i < maskPointSet.size(); i++)
 	{
-		int x = (int)(cos(theta)*(maskPointSet[i].x - centerX) - sin(theta)*(maskPointSet[i].y - centerY)) + centerX + transX;
-		int y = (int)(sin(theta)*(maskPointSet[i].x - centerX) + cos(theta)*(maskPointSet[i].y - centerY)) + centerY + transY;
-		if (x >= 0 && x < srcImage.cols && y >= 0 && y < srcImage.rows)
+		Point2f curTransPoint=AfterTrans(bestTrans, maskPointSet[i], centerX, centerY);
+		
+		if (curTransPoint.x >= 0 && curTransPoint.x < srcImageRGB.cols
+			&& curTransPoint.y >= 0 && curTransPoint.y < srcImageRGB.rows)
 		{
-			srcImageRGB.at<Vec3b>(y, x)[0] = 0;
-			srcImageRGB.at<Vec3b>(y, x)[1] = 0;
-			srcImageRGB.at<Vec3b>(y, x)[2] = 255;
+			srcImageRGB.at<Vec3b>(curTransPoint)[0] = 0;
+			srcImageRGB.at<Vec3b>(curTransPoint)[1] = 0;
+			srcImageRGB.at<Vec3b>(curTransPoint)[2] = 255;
 		}
 	}
 
-	for (int i = 0; i < maskPointSet.size(); i++)
-	{
-		int x = (int)(maskPointSet[i].x * 8);
-		int y = (int)(maskPointSet[i].y * 8);
-		maskRGB.at<Vec3b>(y, x)[0] = 0;
-		maskRGB.at<Vec3b>(y, x)[1] = 0;
-		maskRGB.at<Vec3b>(y, x)[2] = 255;
-	}
 
 	waitKey(0);
 	return 0;

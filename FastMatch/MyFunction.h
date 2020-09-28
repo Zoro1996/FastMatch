@@ -20,7 +20,8 @@ using namespace cv::xfeatures2d;
 
 
 static constexpr const float PI = 3.14;
-static constexpr const int scale = 8;
+static constexpr const int scale = 4;
+static constexpr const float sampleRate = 0.001;
 
 struct Contours
 {
